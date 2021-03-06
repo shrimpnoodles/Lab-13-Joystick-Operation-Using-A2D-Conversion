@@ -117,7 +117,7 @@ enum updown_States{start2, init2, nomove2, up, down};
 int updown_Tick(int state){
 	switch(state){
 		case start2:
-			state = init;
+			state = init2;
 			break;
 		case init2:
 			state = nomove2;
@@ -145,6 +145,7 @@ int updown_Tick(int state){
 			else{
 				state = nomove2;
 			}
+			break;
 		default:
 			state = start2;
 			break;
@@ -154,6 +155,7 @@ int updown_Tick(int state){
 		//	Set_A2D_Pin(0x01);
 			break;
 		case init2:
+//			PORTC = 0x01;
 			row = 0x7f;
 			PORTD = row;
 			break;
@@ -161,10 +163,10 @@ int updown_Tick(int state){
 			PORTD = row;
 			break;
 		case up:
-			if(row == 0x7f){
-				row = 0x7f;
-			}
-			else if(row == 0xfe){
+		//	if(row == 0x7f){
+		//		row = 0x7f;
+		//	}
+			 if(row == 0xfe){
 				row = 0xfd;
 			}
 			else if(row == 0xfd){
@@ -185,13 +187,16 @@ int updown_Tick(int state){
 			else if(row == 0xbf){
 				row = 0x7f;
 			}
+		//	else{
+		//		row = (row >>1)|0x80;
+		//	}
 			PORTD = row;
 			break;
 		case down:
-			if(row == 0xfe){
-				row = 0xfe;
-			}
-			else if(row == 0x7f){
+		//	if(row == 0xfe){
+		//		row = 0xfe;
+		//	}
+			 if(row == 0x7f){
 				row = 0xbf;
 			}
 			else if(row == 0xbf){
@@ -212,6 +217,9 @@ int updown_Tick(int state){
 			else if(row == 0xfd){
 				row = 0xfe;
 			}
+		//	else{
+		//		row = (row <<1)|0x01;
+		//	}
 			PORTD = row;
 			break;
 		default:
@@ -225,10 +233,10 @@ enum seta2d_States{LR, UD};
 int seta2d_Tick(int state){
 	switch(state){
 		case LR:
-			state = UD;
+			state = waitlr;
 			break;
 		case UD:
-			state = LR;
+			state = waitud;
 			break;
 		default:
 			state = LR;
@@ -240,7 +248,7 @@ int seta2d_Tick(int state){
 			break;
 		case UD:
 			Set_A2D_Pin(0x01);
-			break;
+			break;;
 		default:
 			break;
 		}
@@ -253,7 +261,7 @@ int main(void) {
 	DDRC = 0XFF; PORTC = 0X00;
 	DDRD = 0XFF; PORTD = 0X00;
 	
-
+		
 
 	void A2D_init() {
       ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
@@ -282,7 +290,7 @@ const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 	task2.TickFct = &updown_Tick;
 
 	task3.state = start;
-	task3.period = 1;
+	task3.period = 50;
 	task3.elapsedTime = task2.period;
 	task3.TickFct = &seta2d_Tick;
 
@@ -299,11 +307,11 @@ const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 		return 0;
 	}
 	unsigned short i;
-	unsigned long GCD = tasks[0]->period;
+	unsigned long GCD=tasks[0]->period;
 	for(i=1; i< numTasks; i++){
 		GCD = findGCD(GCD, tasks[i]->period);
 	}
-	
+//	GCD = 1;	
 	TimerSet(GCD);
 	TimerOn();
 
