@@ -79,7 +79,7 @@ int leftright_Tick(int state){
 		}
 	switch(state){
 		case start1:
-		//	Set_A2D_Pin(0x00);
+	//		Set_A2D_Pin(0x00);
 			break;
 		case init:
 			pattern = 0x01;
@@ -152,7 +152,7 @@ int updown_Tick(int state){
 		}
 	switch(state){
 		case start2:
-		//	Set_A2D_Pin(0x01);
+	//		Set_A2D_Pin(0x02);
 			break;
 		case init2:
 //			PORTC = 0x01;
@@ -228,27 +228,32 @@ int updown_Tick(int state){
 	return state;
 }
 
-enum seta2d_States{LR, UD};
+enum seta2d_States{starta2d, LR, UD};
 
 int seta2d_Tick(int state){
 	switch(state){
+		case starta2d:
+			state = LR;
+			break;
 		case LR:
-			state = waitlr;
+			state = UD;
 			break;
 		case UD:
-			state = waitud;
+			state = LR;
 			break;
 		default:
-			state = LR;
+			state = starta2d;
 			break;
 		}
 	switch(state){
+		case starta2d:
+			break;
 		case LR:
 			Set_A2D_Pin(0x00);
 			break;
 		case UD:
-			Set_A2D_Pin(0x01);
-			break;;
+			Set_A2D_Pin(0x02);
+			break;
 		default:
 			break;
 		}
@@ -258,6 +263,7 @@ int seta2d_Tick(int state){
 int main(void) {
     /* Insert DDR and PORT initializations */
 	DDRA =0X00; PORTA = 0XFF;
+	DDRB = 0xff; PORTB = 0x00;
 	DDRC = 0XFF; PORTC = 0X00;
 	DDRD = 0XFF; PORTD = 0X00;
 	
@@ -290,11 +296,11 @@ const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 	task2.TickFct = &updown_Tick;
 
 	task3.state = start;
-	task3.period = 50;
-	task3.elapsedTime = task2.period;
+	task3.period = 1;
+	task3.elapsedTime = task3.period;
 	task3.TickFct = &seta2d_Tick;
 
-	unsigned long int findGCD(unsigned long int a, unsigned long int b){
+/*	unsigned long int findGCD(unsigned long int a, unsigned long int b){
 		unsigned long int c;
 		while(1){
 			c = a%b;
@@ -305,14 +311,14 @@ const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 			b = c;
 		}
 		return 0;
-	}
+	}*/
 	unsigned short i;
-	unsigned long GCD=tasks[0]->period;
+/*	unsigned long GCD=tasks[0]->period;
 	for(i=1; i< numTasks; i++){
 		GCD = findGCD(GCD, tasks[i]->period);
-	}
+	}*/
 //	GCD = 1;	
-	TimerSet(GCD);
+	TimerSet(1);
 	TimerOn();
 
     	while (1) {
@@ -321,12 +327,12 @@ const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 			tasks[i]->state = tasks[i]->TickFct(tasks[i]->state);
 			tasks[i]->elapsedTime = 0;
 		}
-		tasks[i]->elapsedTime += GCD;
+		tasks[i]->elapsedTime += 1;
 	}
-		TimerSet(1);
+	//	TimerSet(1);
 	       	while(!TimerFlag);
 	       	TimerFlag = 0;
-	       	TimerSet(GCD);
+	  //     	TimerSet(GCD);
 	    }
 	    return 1;
     }
