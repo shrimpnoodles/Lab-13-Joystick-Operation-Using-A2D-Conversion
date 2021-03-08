@@ -8,41 +8,34 @@
  *	code, is my own original work.
  */
 #include <avr/io.h>
+#include <timer.h>
+#include <scheduler.h>
 #ifdef _SIMULATE_
 #include "simAVRHeader.h"
-#include "timer.h"
-#include "scheduler.h"
 #endif
 
-void ADC_init(){
+unsigned char pattern = 0x80;
+unsigned char row = 0xFE;
+
+void Set_A2D_Pin(unsigned char pinNum) {
+	ADMUX = (pinNum <= 0x07) ? pinNum : ADMUX;
+	static unsigned char i = 0;
+	for (i = 0; i < 15; i++) { asm("nop"); }
+}
+
+void ADC_init() {
 	ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
-	//ADEN: SETTING THIS BIT ENABLES ANALOG TO DIGITAL CONVERSION
-	//ADSC: SETTING THIS BIT STARTS THE FIRST CONVERSION
-	//ADATE: SETTING THIS BIT ENABLES AUTO TRIGGERING
-	//	SINCE WE ARE IN FREE RUNNING MODE A NEW CONVERSION
-	//	WILL TRIGGER WHENEVER THE PREVIOUS CONVERSION COMPLETES
+	//ADEN: setting this bit enables analog-to-digital conversion
+	//ADSC: setting this bit starts the first conversion.
+	//ADATE: setting this bit enables auto-triggering. Since we are in
+			// Free Running Mode, a new conversion will trigger whenever the previous conversion completes
 }
-
-// Pins on PORTA are used as input for A2D conversion
-	//    The default channel is 0 (PA0)
-	// The value of pinNum determines the pin on PORTA
-	//    used for A2D conversion
-	// Valid values range between 0 and 7, where the value
-	//    represents the desired pin for A2D conversion
-	void Set_A2D_Pin(unsigned char pinNum) {
-		ADMUX = (pinNum <= 0x07) ? pinNum : ADMUX;
-		// Allow channel to stabilize
-		static unsigned char i = 0;
-		for ( i=0; i<15; i++ ) { asm("nop"); } 
-}
-
-unsigned char pattern;
-unsigned char row;
-
 enum leftright_States{start1, init, nomove, left, right};
 
 int leftright_Tick(int state){
-	switch(state){
+
+	Set_A2D_Pin(0x00);
+	switch(state) {
 		case start1:
 			state = init;
 			break;
@@ -106,16 +99,17 @@ int leftright_Tick(int state){
 			}
 			PORTC = pattern;
 			break;
-		default:
-			break;
 	}
+	PORTC = pattern;
+	PORTD = row;
 	return state;
 }
 
 enum updown_States{start2, init2, nomove2, up, down};
 
 int updown_Tick(int state){
-	switch(state){
+	Set_A2D_Pin(0x01);
+	switch(state) {
 		case start2:
 			state = init2;
 			break;
@@ -150,7 +144,7 @@ int updown_Tick(int state){
 			state = start2;
 			break;
 		}
-	switch(state){
+	switch(state) {
 		case start2:
 	//		Set_A2D_Pin(0x02);
 			break;
@@ -225,6 +219,8 @@ int updown_Tick(int state){
 		default:
 			break;
 	}
+	PORTC = pattern;
+	PORTD = row;
 	return state;
 }
 
@@ -261,79 +257,48 @@ int seta2d_Tick(int state){
 }
 
 int main(void) {
-    /* Insert DDR and PORT initializations */
-	DDRA =0X00; PORTA = 0XFF;
-	DDRB = 0xff; PORTB = 0x00;
-	DDRC = 0XFF; PORTC = 0X00;
-	DDRD = 0XFF; PORTD = 0X00;
-	
-		
-
-	void A2D_init() {
-      ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
-	// ADEN: Enables analog-to-digital conversion
-	// ADSC: Starts analog-to-digital conversion
-	// ADATE: Enables auto-triggering, allowing for constant
-	//	    analog to digital conversions.
-}
+	DDRA = 0x00; PORTA = 0xFF;
+	DDRC = 0xFF; PORTC = 0x00;
+	DDRD = 0xFF; PORTD = 0x00;
 	ADC_init();
 
 	static task task1, task2, task3;
 	task *tasks[] = {&task1, &task2, &task3};
-const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
+	const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 
 	const char start = -1;
-
+	
 	task1.state = start;
-	task1.period = 50;
+	task1.period = 10;
 	task1.elapsedTime = task1.period;
 	task1.TickFct = &leftright_Tick;
-
 	
 	task2.state = start;
-	task2.period = 50;
+	task2.period = 10;
 	task2.elapsedTime = task2.period;
 	task2.TickFct = &updown_Tick;
-
+	
 	task3.state = start;
 	task3.period = 1;
 	task3.elapsedTime = task3.period;
 	task3.TickFct = &seta2d_Tick;
 
-/*	unsigned long int findGCD(unsigned long int a, unsigned long int b){
-		unsigned long int c;
-		while(1){
-			c = a%b;
-			if (c==0){
-				return b;
-			}
-			a = b;
-			b = c;
-		}
-		return 0;
-	}*/
-	unsigned short i;
-/*	unsigned long GCD=tasks[0]->period;
-	for(i=1; i< numTasks; i++){
-		GCD = findGCD(GCD, tasks[i]->period);
-	}*/
-//	GCD = 1;	
 	TimerSet(1);
 	TimerOn();
 
-    	while (1) {
-		for(i=0; i<numTasks; i++){
-		if(tasks[i]->elapsedTime == tasks[i]->period){
-			tasks[i]->state = tasks[i]->TickFct(tasks[i]->state);
-			tasks[i]->elapsedTime = 0;
-		}
-		tasks[i]->elapsedTime += 1;
-	}
-	//	TimerSet(1);
-	       	while(!TimerFlag);
-	       	TimerFlag = 0;
-	  //     	TimerSet(GCD);
-	    }
-	    return 1;
-    }
+	unsigned short i;
 
+	while(1) {
+		for (i = 0; i < numTasks; i++) {
+			if (tasks[i] -> elapsedTime == tasks[i] -> period) {
+				tasks[i] -> state = tasks[i] -> TickFct(tasks[i] -> state);
+				tasks[i] -> elapsedTime = 0;
+			}
+			tasks[i] -> elapsedTime += 1;
+		}
+		while(!TimerFlag);
+		TimerFlag = 0;
+	}
+	return 0;
+
+}
